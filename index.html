@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fiszki App</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+    <h1>Fiszki App</h1>
+    <nav>
+        <button onclick="showSection('flashcards')">Fiszki</button>
+        <button onclick="showSection('input')">Create Cards</button>
+    </nav>
+</header>
+
+<div id="flashcards" class="container active">
+    <input type="file" id="importCsv" accept=".csv">
+    <button onclick="exportCsv()">Export CSV</button>
+    <div id="cardContainer"></div>
+    <div class="learned-btn-container">
+        <button id="learnedBtn" onclick="toggleLearned()">Mark as Learned</button>
+    </div>
+</div>
+
+<div id="input" class="container">
+    <textarea id="frontInput" placeholder="Front of card"></textarea>
+    <textarea id="backInput" placeholder="Back of card"></textarea>
+    <button onclick="addCard()">Add Card</button>
+    <button onclick="exportCsv()">Export CSV</button>
+    <ul id="cardList"></ul>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
