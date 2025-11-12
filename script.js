@@ -3,157 +3,182 @@ let currentIndex = 0;
 let animating = false;
 
 function showSection(section) {
-    document.querySelectorAll('.container').forEach(c => c.classList.remove('active'));
-    document.getElementById(section).classList.add('active');
-    if (section === 'flashcards') renderCard();
+  document.querySelectorAll('.container').forEach(c => c.classList.remove('active'));
+  document.getElementById(section).classList.add('active');
+  if (section === 'flashcards') renderCard();
 }
 
 document.getElementById('importCsv').addEventListener('change', function(e){
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(e){
-        const text = e.target.result;
-        cards = text.trim().split('\n').map(line => {
-            const [front, back, learned] = line.split(',');
-            return { front, back, learned: learned === 'true' };
-        });
-        currentIndex = 0;
-        renderCard();
-    };
-    reader.readAsText(file);
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    const text = ev.target.result;
+    cards = text.trim().split('\n').map(line => {
+      const [front = '', back = '', learned = 'false'] = line.split(',');
+      return { front: front.trim(), back: back.trim(), learned: learned.trim() === 'true' };
+    });
+    currentIndex = 0;
+    renderCard();
+    renderInputList();
+  };
+  reader.readAsText(file);
 });
 
 function renderCard(animation = '') {
-    const container = document.getElementById('cardContainer');
-    container.innerHTML = '';
+  const container = document.getElementById('cardContainer');
+  container.innerHTML = '';
 
-    if (cards.length === 0) {
-        container.innerHTML = '<p>No cards loaded.</p>';
-        document.getElementById('learnedBtn').style.display = 'none';
-        return;
-    }
+  if (cards.length === 0) {
+    container.innerHTML = '<p>No cards loaded.</p>';
+    document.getElementById('learnedBtn').style.display = 'none';
+    return;
+  }
 
-    const card = cards[currentIndex];
-    const div = document.createElement('div');
-    div.className = 'card' + (card.learned ? ' learned' : '');
-    if (animation) div.classList.add(animation);
+  const card = cards[currentIndex];
 
-    const front = document.createElement('div');
-    front.className = 'card-face card-front';
-    front.textContent = card.front;
+  const wrapper = document.createElement('div');
+  wrapper.className = 'card-wrapper';
+  if (animation) wrapper.classList.add(animation);
 
-    const back = document.createElement('div');
-    back.className = 'card-face card-back';
-    back.textContent = card.back;
+  const inner = document.createElement('div');
+  inner.className = 'card-inner';
+  if (card.learned) inner.classList.add('learned'); // visual style applied
 
-    div.addEventListener('click', () => {
-        div.classList.toggle('flipped');
-    });
+  const faceFront = document.createElement('div');
+  faceFront.className = 'card-face card-front';
+  faceFront.textContent = card.front;
 
-    div.appendChild(front);
-    div.appendChild(back);
+  const faceBack = document.createElement('div');
+  faceBack.className = 'card-face card-back';
+  faceBack.textContent = card.back;
 
-    const prevBtn = document.createElement('button');
-    prevBtn.className = 'arrow-btn';
-    prevBtn.id = 'prevBtn';
-    prevBtn.innerHTML = '←';
-    prevBtn.addEventListener('click', e => { e.stopPropagation(); prevCard(); });
+  inner.addEventListener('click', () => {
+    inner.classList.toggle('flipped');
+  });
 
-    const nextBtn = document.createElement('button');
-    nextBtn.className = 'arrow-btn';
-    nextBtn.id = 'nextBtn';
-    nextBtn.innerHTML = '→';
-    nextBtn.addEventListener('click', e => { e.stopPropagation(); nextCard(); });
+  inner.addEventListener('dblclick', (e) => {
+    e.stopPropagation();
+    toggleLearned();
+  });
 
-    div.appendChild(prevBtn);
-    div.appendChild(nextBtn);
+  inner.appendChild(faceFront);
+  inner.appendChild(faceBack);
 
-    container.appendChild(div);
+  const prev = document.createElement('button');
+  prev.className = 'arrow-btn';
+  prev.id = 'prevBtn';
+  prev.innerHTML = '←';
+  prev.addEventListener('click', (e) => { e.stopPropagation(); prevCard(); });
 
-    const learnedBtn = document.getElementById('learnedBtn');
-    learnedBtn.style.display = 'inline-block';
-    if (card.learned) {
-        learnedBtn.textContent = 'Unmark as Learned';
-        learnedBtn.classList.add('unmark');
-    } else {
-        learnedBtn.textContent = 'Mark as Learned';
-        learnedBtn.classList.remove('unmark');
-    }
+  const next = document.createElement('button');
+  next.className = 'arrow-btn';
+  next.id = 'nextBtn';
+  next.innerHTML = '→';
+  next.addEventListener('click', (e) => { e.stopPropagation(); nextCard(); });
+
+  wrapper.appendChild(prev);
+  wrapper.appendChild(next);
+  wrapper.appendChild(inner);
+  container.appendChild(wrapper);
+
+  const learnedBtn = document.getElementById('learnedBtn');
+  learnedBtn.style.display = 'inline-block';
+  if (card.learned) {
+    learnedBtn.textContent = 'Unmark as Learned';
+    learnedBtn.classList.add('unmark');
+  } else {
+    learnedBtn.textContent = 'Mark as Learned';
+    learnedBtn.classList.remove('unmark');
+  }
+
+  wrapper.addEventListener('animationend', (ev) => {
+    wrapper.classList.remove('slide-in-right','slide-out-left','slide-in-left','slide-out-right');
+  }, { once: true });
 }
 
 function animateCardChange(direction) {
-    if (animating) return;
-    animating = true;
-    const container = document.getElementById('cardContainer');
-    const oldCard = container.querySelector('.card');
-    if (!oldCard) { animating = false; return; }
+  if (animating || cards.length === 0) return;
+  animating = true;
 
-    let outAnim = direction === 'next' ? 'slide-out-left' : 'slide-out-right';
-    let inAnim = direction === 'next' ? 'slide-in-right' : 'slide-in-left';
+  const container = document.getElementById('cardContainer');
+  const wrapper = container.querySelector('.card-wrapper');
+  if (!wrapper) {
+    animating = false;
+    return;
+  }
 
-    oldCard.classList.add(outAnim);
+  const outAnim = direction === 'next' ? 'slide-out-left' : 'slide-out-right';
+  const inAnim  = direction === 'next' ? 'slide-in-right' : 'slide-in-left';
 
-    setTimeout(() => {
-        if (direction === 'next') {
-            currentIndex = (currentIndex + 1) % cards.length;
-        } else {
-            currentIndex = (currentIndex - 1 + cards.length) % cards.length;
-        }
-        renderCard(inAnim);
-        animating = false;
-    }, 400);
+  // play outgoing
+  wrapper.classList.add(outAnim);
+
+  // when outgoing finishes, update index and render new wrapper with incoming animation
+  wrapper.addEventListener('animationend', function handler() {
+    wrapper.removeEventListener('animationend', handler);
+    if (direction === 'next') {
+      currentIndex = (currentIndex + 1) % cards.length;
+    } else {
+      currentIndex = (currentIndex - 1 + cards.length) % cards.length;
+    }
+    renderCard(inAnim);
+    const newWrapper = document.getElementById('cardContainer').querySelector('.card-wrapper');
+    if (!newWrapper) { animating = false; return; }
+    newWrapper.addEventListener('animationend', function onInEnd() {
+      newWrapper.removeEventListener('animationend', onInEnd);
+      animating = false;
+    }, { once: true });
+  }, { once: true });
 }
 
-function nextCard() {
-    if (cards.length === 0) return;
-    animateCardChange('next');
-}
-
-function prevCard() {
-    if (cards.length === 0) return;
-    animateCardChange('prev');
-}
+function nextCard() { animateCardChange('next'); }
+function prevCard() { animateCardChange('prev'); }
 
 function toggleLearned() {
-    if (cards.length === 0) return;
-    const card = cards[currentIndex];
-    card.learned = !card.learned;
-    renderCard();
+  if (cards.length === 0) return;
+  cards[currentIndex].learned = !cards[currentIndex].learned;
+  renderCard();
+  renderInputList();
 }
 
 function addCard() {
-    const front = document.getElementById('frontInput').value.trim();
-    const back = document.getElementById('backInput').value.trim();
-    if (!front || !back) return;
-    cards.push({ front, back, learned: false });
-    renderInputList();
-    document.getElementById('frontInput').value = '';
-    document.getElementById('backInput').value = '';
+  const front = document.getElementById('frontInput').value.trim();
+  const back = document.getElementById('backInput').value.trim();
+  if (!front || !back) return;
+  cards.push({ front, back, learned: false });
+  document.getElementById('frontInput').value = '';
+  document.getElementById('backInput').value = '';
+  renderInputList();
+  renderCard();
 }
-
 function renderInputList() {
-    const ul = document.getElementById('cardList');
-    ul.innerHTML = '';
-    cards.forEach((c, i) => {
-        const li = document.createElement('li');
-        li.textContent = `${c.front} → ${c.back}`;
-        li.onclick = () => {
-            cards.splice(i, 1);
-            renderInputList();
-        };
-        ul.appendChild(li);
+  const ul = document.getElementById('cardList');
+  ul.innerHTML = '';
+  cards.forEach((c, i) => {
+    const li = document.createElement('li');
+    li.textContent = `${c.front} → ${c.back}`;
+    li.addEventListener('click', () => {
+      cards.splice(i,1);
+      if (currentIndex >= cards.length) currentIndex = Math.max(0, cards.length - 1);
+      renderInputList();
+      renderCard();
     });
+    ul.appendChild(li);
+  });
 }
 
 function exportCsv() {
-    if (cards.length === 0) return;
-    const csvContent = cards.map(c => `${c.front},${c.back},${c.learned}`).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'cards.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+  if (cards.length === 0) return;
+  const csvContent = cards.map(c => `${c.front},${c.back},${c.learned}`).join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'cards.csv';
+  a.click();
+  URL.revokeObjectURL(url);
 }
+
+renderCard();
+renderInputList();
